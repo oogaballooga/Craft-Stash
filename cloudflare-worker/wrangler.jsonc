@@ -1,0 +1,26 @@
+{
+	"$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+	"name": "craft-stash-r2-worker",
+	"main": "src/index.js",
+	"compatibility_date": "2025-07-24",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// R2 bucket binding — maps the R2 bucket to the `R2_BUCKET` variable in the worker
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+      "bucket_name": "fabric-images"
+		}
+	],
+	// ═══════════════════════════════════════════════════════════════
+	// SECRETS — set these via CLI before deploying:
+	//   npx wrangler secret put R2_ACCESS_KEY_ID
+	//   npx wrangler secret put R2_SECRET_ACCESS_KEY
+	//   npx wrangler secret put FIREBASE_PROJECT_ID
+	//   npx wrangler secret put R2_ACCOUNT_ID
+	//   npx wrangler secret put ALLOWED_ORIGINS
+	//
+	// For local dev, copy .dev.vars.example → .dev.vars and fill in values.
+	// ═══════════════════════════════════════════════════════════════
+}
