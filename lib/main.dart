@@ -93,6 +93,7 @@ class MainState extends State<Main> {
       builder: (context, _) {
         final tc = ThemeController();
         return MaterialApp(
+          title: 'Craft Stash',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             brightness: Brightness.light,
