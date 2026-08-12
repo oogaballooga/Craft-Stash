@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -312,9 +311,13 @@ class _FabricStashPageState extends State<FabricStashPage> {
     );
   }
 
-  Future<void> _pickImage(ImageSource source, void Function(XFile) onPicked) async {
+  Future<void> _pickImage(ImageSource source, void Function(Uint8List, String) onPicked) async {
     final picked = await _imagePicker.pickImage(source: source, imageQuality: 70, maxWidth: 600);
-    if (picked != null) onPicked(picked);
+    if (picked != null) {
+      final bytes = await picked.readAsBytes();
+      final ext = picked.name.substring(picked.name.lastIndexOf('.'));
+      onPicked(bytes, ext);
+    }
   }
 
   // ─── Add Fabric Dialog ────────────────────────────────────────────────
@@ -322,7 +325,8 @@ class _FabricStashPageState extends State<FabricStashPage> {
     final titleController = TextEditingController();
     final quantityController = TextEditingController(text: '1');
     final descriptionController = TextEditingController();
-    XFile? pickedImage;
+    Uint8List? pickedBytes;
+    String? pickedExtension;
 
     bool saving = false;
 
@@ -335,9 +339,14 @@ class _FabricStashPageState extends State<FabricStashPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _imagePreviewBox(pickedImage),
+                _imagePreviewBox(pickedBytes),
                 const SizedBox(height: 8),
-                _imageSourceRow(setDialogState, (img) => setDialogState(() => pickedImage = img)),
+                _imageSourceRow(setDialogState, (bytes, ext) {
+                  setDialogState(() {
+                    pickedBytes = bytes;
+                    pickedExtension = ext;
+                  });
+                }),
                 const SizedBox(height: 16),
                 _formField(titleController, 'Title *'),
                 const SizedBox(height: 12),
@@ -366,7 +375,8 @@ class _FabricStashPageState extends State<FabricStashPage> {
                       try {
                         await _uploadAndSaveFabric(titleController.text.trim(),
                             descriptionController.text.trim(),
-                            int.tryParse(quantityController.text) ?? 1, pickedImage);
+                            int.tryParse(quantityController.text) ?? 1,
+                            pickedBytes, pickedExtension);
                         if (ctx.mounted) Navigator.pop(ctx, true);
                       } catch (e) {
                         setDialogState(() => saving = false);
@@ -386,17 +396,17 @@ class _FabricStashPageState extends State<FabricStashPage> {
     if (result == true) setState(() {});
   }
 
-  Widget _imagePreviewBox(XFile? image) {
+  Widget _imagePreviewBox(Uint8List? bytes) {
     return Container(
       height: 150, width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.grey[200], borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.grey[400]!),
       ),
-      child: image != null
+      child: bytes != null
           ? ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.file(File(image.path), fit: BoxFit.cover))
+              child: Image.memory(bytes, fit: BoxFit.cover))
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -408,7 +418,7 @@ class _FabricStashPageState extends State<FabricStashPage> {
     );
   }
 
-  Widget _imageSourceRow(StateSetter setDialogState, void Function(XFile) onPicked) {
+  Widget _imageSourceRow(StateSetter setDialogState, void Function(Uint8List, String) onPicked) {
     return Row(
       children: [
         Expanded(
@@ -442,9 +452,12 @@ class _FabricStashPageState extends State<FabricStashPage> {
   }
 
   Future<void> _uploadAndSaveFabric(
-      String title, String description, int quantity, XFile? image) async {
+      String title, String description, int quantity,
+      Uint8List? imageBytes, String? extension) async {
     String r2Key = '';
-    if (image != null) r2Key = await _r2Service.uploadFile(image.path);
+    if (imageBytes != null && extension != null) {
+      r2Key = await _r2Service.uploadImageBytes(imageBytes, extension);
+    }
     await _firestore.collection('users').doc(_currentUser!.uid).collection('fabrics').add({
       'title': title, 'description': description, 'quantity': quantity,
       'r2Key': r2Key, 'createdAt': FieldValue.serverTimestamp(),
@@ -456,8 +469,8 @@ class _FabricStashPageState extends State<FabricStashPage> {
     final titleController = TextEditingController(text: fabric.title);
     final quantityController = TextEditingController(text: fabric.quantity.toString());
     final descriptionController = TextEditingController(text: fabric.description);
-    XFile? pickedImage;
-    bool imageChanged = false;
+    Uint8List? pickedBytes;
+    String? pickedExtension;
 
     await showDialog(
       context: context,
@@ -474,10 +487,10 @@ class _FabricStashPageState extends State<FabricStashPage> {
                     color: Colors.grey[200], borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[400]!),
                   ),
-                  child: pickedImage != null
+                  child: pickedBytes != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.file(File(pickedImage!.path), fit: BoxFit.cover))
+                          child: Image.memory(pickedBytes!, fit: BoxFit.cover))
                       : fabric.r2Key.isNotEmpty
                           ? FabricImageWidget(
                               key: ValueKey(fabric.r2Key),
@@ -501,8 +514,11 @@ class _FabricStashPageState extends State<FabricStashPage> {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickImage(ImageSource.camera, (img) {
-                          setDialogState(() { pickedImage = img; imageChanged = true; });
+                        onPressed: () => _pickImage(ImageSource.camera, (bytes, ext) {
+                          setDialogState(() {
+                            pickedBytes = bytes;
+                            pickedExtension = ext;
+                          });
                         }),
                         icon: const Icon(Icons.camera_alt, size: 18),
                         label: const Text('Camera', style: TextStyle(fontSize: 13)),
@@ -511,8 +527,11 @@ class _FabricStashPageState extends State<FabricStashPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => _pickImage(ImageSource.gallery, (img) {
-                          setDialogState(() { pickedImage = img; imageChanged = true; });
+                        onPressed: () => _pickImage(ImageSource.gallery, (bytes, ext) {
+                          setDialogState(() {
+                            pickedBytes = bytes;
+                            pickedExtension = ext;
+                          });
                         }),
                         icon: const Icon(Icons.photo_library, size: 18),
                         label: const Text('Gallery', style: TextStyle(fontSize: 13)),
@@ -542,7 +561,8 @@ class _FabricStashPageState extends State<FabricStashPage> {
                 try {
                   await _updateFabric(fabric, titleController.text.trim(),
                       descriptionController.text.trim(),
-                      int.tryParse(quantityController.text) ?? 1, pickedImage);
+                      int.tryParse(quantityController.text) ?? 1,
+                      pickedBytes, pickedExtension);
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
                   if (ctx.mounted) {
@@ -560,10 +580,11 @@ class _FabricStashPageState extends State<FabricStashPage> {
   }
 
   Future<void> _updateFabric(
-      FabricEntry fabric, String title, String description, int quantity, XFile? newImage) async {
+      FabricEntry fabric, String title, String description, int quantity,
+      Uint8List? newImageBytes, String? newExtension) async {
     String r2Key = fabric.r2Key;
-    if (newImage != null) {
-      r2Key = await _r2Service.uploadFile(newImage.path);
+    if (newImageBytes != null && newExtension != null) {
+      r2Key = await _r2Service.uploadImageBytes(newImageBytes, newExtension);
       _imageCache.remove(fabric.r2Key);
     }
     await _firestore.collection('users').doc(_currentUser!.uid)

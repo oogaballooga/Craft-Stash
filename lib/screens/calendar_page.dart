@@ -17,7 +17,7 @@ class _CalendarPageState extends State<CalendarPage> {
   final FirebaseFirestore db = FirebaseFirestore.instance;
   DateTime _selectedDay = DateTime.now();
   DateTime _focusedDay = DateTime.now();
-  bool _isWeeklyView = false;
+  bool _isWeeklyView = true;
   final Map<DateTime, List<Map<String, dynamic>>> _events = {};
 
   String _selectedFilter = "All";
@@ -37,15 +37,47 @@ class _CalendarPageState extends State<CalendarPage> {
     final coll = await db.collection('events').get();
     for (var event in coll.docs) {
       final data = event.data();
-      final eventDate = (data['date'] as Timestamp).toDate();
       final title = data['title'] as String;
-      _events.putIfAbsent(_normalizeDate(eventDate), () => []).add({
-        'title': title,
-        'description': data['description'],
-        'price': data['price'],
-        'time': eventDate,
-        'link': data['link'],
-      });
+      final description = data['description'];
+      final price = data['price'];
+      final link = data['link'];
+      final recurring = data['recurring'] as bool? ?? false;
+
+      if (recurring) {
+        // Recurring event — generate every occurrence on the same day-of-week
+        // for the next 50 years (52 weeks/year * 50 = 2600 occurrences)
+        final startDate = (data['startDate'] as Timestamp).toDate();
+        final timeOfDay = TimeOfDay.fromDateTime(startDate);
+        final limit = DateTime.now()
+            .add(const Duration(days: 365 * 50))
+            .add(const Duration(days: 7)); // 50 years + buffer
+
+        var cursor = _normalizeDate(startDate);
+        while (cursor.isBefore(limit)) {
+          final occurrence = DateTime(
+            cursor.year, cursor.month, cursor.day,
+            timeOfDay.hour, timeOfDay.minute,
+          );
+          _events.putIfAbsent(_normalizeDate(cursor), () => []).add({
+            'title': title,
+            'description': description,
+            'price': price,
+            'time': occurrence,
+            'link': link,
+          });
+          cursor = cursor.add(const Duration(days: 7));
+        }
+      } else {
+        // One-time event
+        final eventDate = (data['date'] as Timestamp).toDate();
+        _events.putIfAbsent(_normalizeDate(eventDate), () => []).add({
+          'title': title,
+          'description': description,
+          'price': price,
+          'time': eventDate,
+          'link': link,
+        });
+      }
     }
     setState(() {});
   }
@@ -195,14 +227,12 @@ class _CalendarPageState extends State<CalendarPage> {
                 rightChevronIcon: Icon(Icons.chevron_right, color: textColor),
               ),
               calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: isDark ? theme.colorScheme.primary : theme.colorScheme.primary.withOpacity(0.4),
+                todayDecoration: const BoxDecoration(
+                  color: Color.fromARGB(255, 69, 148, 214),
                   shape: BoxShape.circle,
                 ),
-                selectedDecoration: BoxDecoration(
-                  color: isDark
-                      ? Color.alphaBlend(theme.colorScheme.primary.withOpacity(0.5), Colors.black)
-                      : theme.colorScheme.primary,
+                selectedDecoration: const BoxDecoration(
+                  color: Color.fromARGB(255, 69, 148, 214),
                   shape: BoxShape.circle,
                 ),
                 todayTextStyle: TextStyle(color: textColor, fontWeight: FontWeight.bold),
@@ -291,7 +321,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         MaterialPageRoute(builder: (context) => const RequestClassPage()),
                       );
                     },
-                    child: const Text("Request Class"),
+                    child: const Text("Request a Class"),
                   ),
                 ],
               ),

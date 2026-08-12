@@ -16,8 +16,8 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _isLoading = false; // Show loading indicator during login process
-  String? _errorMessage; // Display authentication errors
+  bool _isLoading = false;
+  String? _errorMessage;
   Timer? _resetTimer;
 
   void rebuild(int i) {
@@ -47,15 +47,9 @@ class _LoginPageState extends State<LoginPage> {
       User? user = userCred.user;
 
       if (user != null) {
-        // FirebaseFirestore db = FirebaseFirestore.instance;
-        // DocumentSnapshot doc = await db.collection("users").doc(user.uid).get();
-        // Main.nickname = doc.get("nickname");
-        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Logged in as: ${user.displayName ?? user.email}")),
         );
-
-        //main.dart is listening for logins/logouts and will navigate to account_page
         setState(() {});
       }
     } catch (e) {
@@ -71,129 +65,136 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         resizeToAvoidBottomInset: true,
         appBar: const PatternAppBar(title: 'Login'),
-        body: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(), // ✅ Disables scrolling unless forced
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom), // ✅ Prevents overflow with keyboard
-          child: SizedBox(
-          height: MediaQuery.of(context).size.height,
-          child: Center(
-            child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: 400),
-              child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 53),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
-                    ),
-                    autofillHints: [AutofillHints.email],
-                    textInputAction: TextInputAction.next,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        rebuild(5);
-                        return 'Please enter your email';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
-                    ),
-                    obscureText: true,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (value) {
-                      if (_formKey.currentState!.validate()) {
-                        _logIn();
-                      }
-                    },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        rebuild(5);
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  if (_errorMessage != null) // Display error message if login fails
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  const SizedBox(height: 20),
-                  _isLoading
-                      ? CircularProgressIndicator() // Show loading animation while logging in
-                      : ElevatedButton(
-                          onPressed: _logIn,
-                          child: const Text('Login'),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final h = constraints.maxHeight;
+            return SingleChildScrollView(
+              physics: const NeverScrollableScrollPhysics(),
+              child: SizedBox(
+                height: h,
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              // Theme toggle
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onSurface),
+                                  const SizedBox(width: 8),
+                                  ListenableBuilder(
+                                    listenable: ThemeController(),
+                                    builder: (context, _) {
+                                      return Switch(
+                                        value: ThemeController().isDark,
+                                        onChanged: (_) => ThemeController().toggle(),
+                                        activeColor: Theme.of(context).colorScheme.primary,
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onSurface),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              TextFormField(
+                                controller: _emailController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Email',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.email),
+                                ),
+                                autofillHints: [AutofillHints.email],
+                                textInputAction: TextInputAction.next,
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    rebuild(5);
+                                    return 'Please enter your email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _passwordController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Password',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.lock),
+                                ),
+                                obscureText: true,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (value) {
+                                  if (_formKey.currentState!.validate()) {
+                                    _logIn();
+                                  }
+                                },
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    rebuild(5);
+                                    return 'Please enter your password';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              if (_errorMessage != null)
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(color: Colors.red),
+                                  ),
+                                ),
+                              const SizedBox(height: 20),
+                              _isLoading
+                                  ? const CircularProgressIndicator()
+                                  : ElevatedButton(
+                                      onPressed: _logIn,
+                                      child: const Text('Login'),
+                                    ),
+                              const SizedBox(height: 24),
+                              Text("Don't have an account?\nCreate an account below", textAlign: TextAlign.center),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.primary,
+                                  foregroundColor: theme.colorScheme.onPrimary,
+                                ),
+                                onPressed: () {
+                                  FocusScope.of(context).requestFocus(FocusNode());
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const CreateAccountPage()),
+                                  );
+                                },
+                                child: const Text("Create Account"),
+                              ),
+                            ],
+                          ),
                         ),
-                  const SizedBox(height: 80),
-
-                  // Theme toggle
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.light_mode, color: Theme.of(context).colorScheme.onSurface),
-                      const SizedBox(width: 8),
-                      ListenableBuilder(
-                        listenable: ThemeController(),
-                        builder: (context, _) {
-                          return Switch(
-                            value: ThemeController().isDark,
-                            onChanged: (_) => ThemeController().toggle(),
-                            activeColor: Theme.of(context).colorScheme.primary,
-                          );
-                        },
                       ),
-                      const SizedBox(width: 8),
-                      Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.onSurface),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 50),
-
-                  Text("Don't have an account?\nCreate an account below!", textAlign: TextAlign.center),
-                  ElevatedButton(
-                    onPressed: () {
-                      FocusScope.of(context).requestFocus(FocusNode());
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => CreateAccountPage()),
-                      );
-                    },
-                        child: const Text("Create Account"),
-                  ),
-                ],
+                ),
               ),
-              ),
-            ),
-            ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

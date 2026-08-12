@@ -128,14 +128,12 @@ class _RequestClassPageState extends State<RequestClassPage> {
                     headerPadding: EdgeInsets.all(0),
                   ),
                   calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: isDark ? theme.colorScheme.primary : theme.colorScheme.primary.withOpacity(0.4),
+                    todayDecoration: const BoxDecoration(
+                      color: Color.fromARGB(255, 69, 148, 214),
                       shape: BoxShape.circle,
                     ),
-                    selectedDecoration: BoxDecoration(
-                      color: isDark
-                          ? Color.alphaBlend(theme.colorScheme.primary.withOpacity(0.5), Colors.black)
-                          : theme.colorScheme.primary,
+                    selectedDecoration: const BoxDecoration(
+                      color: Color.fromARGB(255, 69, 148, 214),
                       shape: BoxShape.circle,
                     ),
                     disabledTextStyle: TextStyle(color: textColor.withOpacity(0.3)),

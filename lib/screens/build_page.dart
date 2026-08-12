@@ -44,6 +44,7 @@ class _BuildPageState extends State<BuildPage> {
   final List<CanvasItem> _canvasItems = [];
   final Map<String, Uint8List> _imageCache = {};
   int _idCounter = 0;
+  Size _canvasSize = Size.zero;
 
   String? _selectedId;
   String? _draggingId;
@@ -73,46 +74,51 @@ class _BuildPageState extends State<BuildPage> {
         actions: _currentUser == null
             ? null
             : [
-                IconButton(icon: const Icon(Icons.add), tooltip: 'Add fabric', onPressed: _openFabricPicker),
                 if (_canvasItems.isNotEmpty)
-                  IconButton(icon: const Icon(Icons.clear_all), tooltip: 'Clear canvas', onPressed: () => setState(() { _canvasItems.clear(); _selectedId = null; })),
+                  IconButton(icon: const Icon(Icons.delete_sweep), tooltip: 'Clear canvas', onPressed: () => setState(() { _canvasItems.clear(); _selectedId = null; })),
+                IconButton(icon: const Icon(Icons.add), tooltip: 'Add fabric', onPressed: _openFabricPicker),
               ],
       ),
-      body: _currentUser == null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lightbulb_outline, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text('Log in to start building', style: TextStyle(fontSize: 18)),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => Main.switchToProfile(),
-                    icon: const Icon(Icons.login),
-                    label: const Text('Log In'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 69, 148, 214),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : _canvasItems.isEmpty
-              ? _emptyCanvas()
-              : GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() => _selectedId = null),
-                  child: Stack(
-                    clipBehavior: Clip.none,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          _canvasSize = Size(constraints.maxWidth, constraints.maxHeight);
+          return _currentUser == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ..._canvasItems.map(_buildItem),
-                      if (_selectedItem != null) _buildSelectedOverlay(_selectedItem!),
+                      const Icon(Icons.lightbulb_outline, size: 64, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      const Text('Log in to start building', style: TextStyle(fontSize: 18)),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () => Main.switchToProfile(),
+                        icon: const Icon(Icons.login),
+                        label: const Text('Log In'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 69, 148, 214),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                )
+              : _canvasItems.isEmpty
+                  ? _emptyCanvas()
+                  : GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => setState(() => _selectedId = null),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          ..._canvasItems.map(_buildItem),
+                          if (_selectedItem != null) _buildSelectedOverlay(_selectedItem!),
+                        ],
+                      ),
+                    );
+        },
+      ),
     );
   }
 
@@ -193,12 +199,12 @@ class _BuildPageState extends State<BuildPage> {
     );
   }
 
-  // ─── Overlay bar (bigger buttons, comfortable spacing) ─────────────────
+  // ─── Overlay bar ─────────────────────────────────────────────────────
   Widget _buildSelectedOverlay(CanvasItem item) {
     const base = 150.0;
     const barH = 50.0;
     const gap = 8.0;
-    const barW = 340.0;
+    const barW = 290.0;
 
     final centerX = item.position.dx + base / 2;
     final centerY = item.position.dy + base / 2;
@@ -222,11 +228,11 @@ class _BuildPageState extends State<BuildPage> {
         border: Border.all(color: Colors.blueAccent, width: 1.5),
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, 2))],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Row(
-        mainAxisSize: MainAxisSize.max,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Rotate drag‑handle — GestureDetector wraps the decorated box
+          // Rotate drag-handle
           GestureDetector(
             onHorizontalDragUpdate: (d) => setState(() => item.rotation += d.delta.dx * (pi / 150)),
             child: Container(
@@ -241,29 +247,28 @@ class _BuildPageState extends State<BuildPage> {
                 children: [
                   Icon(Icons.rotate_right, size: 16, color: Colors.blueAccent),
                   SizedBox(width: 4),
-                  Text('Rotate', style: TextStyle(fontSize: 11, color: Colors.blueAccent)),
+                  Text('Drag Rotate', style: TextStyle(fontSize: 11, color: Colors.blueAccent)),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           _btn(Icons.remove, () => setState(() => item.scale = (item.scale - 0.1).clamp(0.3, 3.0))),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           _btn(Icons.add,    () => setState(() => item.scale = (item.scale + 0.1).clamp(0.3, 3.0))),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           _btn(Icons.close,  () => setState(() { _canvasItems.remove(item); _selectedId = null; }), isDestructive: true),
-          const SizedBox(width: 10),
-          // Title block
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 120),
+          const SizedBox(width: 8),
+          // Title block — fills remaining space, truncates with ellipsis
+          Flexible(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Fabric:', style: TextStyle(fontSize: 8, color: Colors.grey)),
+                const Text('Fabric', style: TextStyle(fontSize: 8, color: Colors.grey)),
                 Text(
                   item.title,
-                  style: const TextStyle(fontSize: 10, color: Colors.black87),
+                  style: const TextStyle(fontSize: 11, color: Colors.black87, fontWeight: FontWeight.w600),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -317,17 +322,43 @@ class _BuildPageState extends State<BuildPage> {
                 const SizedBox(height: 4), const Text('Add fabrics in the Stash tab first', style: TextStyle(color: Colors.grey, fontSize: 12)),
               ]));
               return ListView.builder(
-                controller: sc, padding: const EdgeInsets.all(12), itemCount: snap.data!.docs.length,
+                controller: sc,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                itemCount: snap.data!.docs.length,
                 itemBuilder: (_, i) {
                   final d = snap.data!.docs[i].data() as Map<String, dynamic>;
                   final r2Key = (d['r2Key'] as String?) ?? '';
                   final title = (d['title'] as String?) ?? 'Untitled';
-                  return ListTile(
-                    leading: r2Key.isNotEmpty ? SizedBox(width: 60, height: 60, child: ClipRRect(borderRadius: BorderRadius.circular(6),
-                        child: _imageCache.containsKey(r2Key) ? Image.memory(_imageCache[r2Key]!, fit: BoxFit.cover)
-                            : FutureBuilder<Uint8List>(future: _r2Service.getImageBytes(r2Key), builder: (_, s) { if (s.hasData) { _imageCache[r2Key] = s.data!; return Image.memory(s.data!, fit: BoxFit.cover); } return const Center(child: CircularProgressIndicator(strokeWidth: 2)); }))) : Container(width: 60, height: 60, color: Colors.grey[300], child: const Icon(Icons.checkroom, size: 24)),
-                    title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    onTap: () { Navigator.pop(ctx); _add(r2Key, title); },
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      tileColor: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      leading: r2Key.isNotEmpty
+                          ? SizedBox(
+                              width: 80, height: 80,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: _imageCache.containsKey(r2Key)
+                                    ? Image.memory(_imageCache[r2Key]!, fit: BoxFit.cover)
+                                    : FutureBuilder<Uint8List>(
+                                        future: _r2Service.getImageBytes(r2Key),
+                                        builder: (_, s) {
+                                          if (s.hasData) { _imageCache[r2Key] = s.data!; return Image.memory(s.data!, fit: BoxFit.cover); }
+                                          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                                        }),
+                              ),
+                            )
+                          : Container(
+                              width: 80, height: 80,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.checkroom, size: 28)),
+                      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      onTap: () { Navigator.pop(ctx); _add(r2Key, title); },
+                    ),
                   );
                 });
             });
@@ -339,6 +370,37 @@ class _BuildPageState extends State<BuildPage> {
   void _add(String r2Key, String title) {
     if (r2Key.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This fabric has no image'))); return; }
     final id = 'item_${_idCounter++}';
-    setState(() => _canvasItems.add(CanvasItem(instanceId: id, firestoreId: id, r2Key: r2Key, title: title, position: Offset(30 + (_canvasItems.length % 4) * 40, 30 + (_canvasItems.length ~/ 4) * 190))));
+
+    // All fabrics centred horizontally, near the top of the canvas.
+    // The overlay bar (290 px wide) must stay on screen, so the image
+    // never starts further left than 100 px.  Later items cascade
+    // diagonally so they don't perfectly overlap.
+    const imageSize = 150.0;
+    const barW = 290.0;
+    const minX = (barW - imageSize) / 2; // 70 px   – safe left edge for the overlay
+    const baseY = 80.0;
+    const cascadeDX = 50.0;  // horizontal stagger per item
+    const cascadeDY = 40.0;  // vertical   stagger per item
+
+    // Horizontal centre of the canvas
+    final centerX = _canvasSize != Size.zero
+        ? (_canvasSize.width - imageSize) / 2
+        : 0.0;
+
+    // Start at centre then shift one image-width left so the cascade
+    // spreads across the centre area.
+    final baseX = (centerX - imageSize / 2).clamp(minX, double.infinity);
+
+    final int n = _canvasItems.length;
+    final x = baseX + (n % 3) * cascadeDX;
+    final y = baseY + (n ~/ 3) * cascadeDY;
+
+    setState(() => _canvasItems.add(CanvasItem(
+      instanceId: id,
+      firestoreId: id,
+      r2Key: r2Key,
+      title: title,
+      position: Offset(x, y),
+    )));
   }
 }

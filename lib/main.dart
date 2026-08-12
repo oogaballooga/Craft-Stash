@@ -101,6 +101,12 @@ class MainState extends State<Main> {
               brightness: Brightness.light,
             ),
             useMaterial3: true,
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 69, 148, 214),
+                foregroundColor: Colors.white,
+              ),
+            ),
           ),
           darkTheme: ThemeData(
             brightness: Brightness.dark,
@@ -109,6 +115,12 @@ class MainState extends State<Main> {
               brightness: Brightness.dark,
             ),
             useMaterial3: true,
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 69, 148, 214),
+                foregroundColor: Colors.white,
+              ),
+            ),
           ),
           themeMode: tc.mode,
           home: Scaffold(

@@ -35,7 +35,7 @@ class R2StorageService {
     return token;
   }
 
-  /// Uploads a file to R2 via the Cloudflare Worker.
+  /// Uploads a file to R2 via the Cloudflare Worker (native platforms only).
   ///
   /// [filePath] is the local path to the file to upload.
   /// Returns the R2 object key that can be used to retrieve the file later.
@@ -50,6 +50,38 @@ class R2StorageService {
     final base64Data = base64Encode(bytes);
 
     // Send to Worker
+    final token = await _getIdToken();
+    final response = await http.post(
+      Uri.parse('$_workerBaseUrl/upload'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'fileName': fileName,
+        'contentType': contentType,
+        'data': base64Data,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final body = jsonDecode(response.body);
+      throw Exception(body['error'] ?? 'Upload failed with status ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    return data['key'] as String;
+  }
+
+  /// Uploads raw image bytes to R2 (cross-platform, including web).
+  ///
+  /// [bytes] are the image bytes, [extension] includes the dot (e.g., ".jpg").
+  /// Returns the R2 object key.
+  Future<String> uploadImageBytes(Uint8List bytes, String extension) async {
+    final fileName = generateFileName(extension);
+    final contentType = _contentTypeForExtension(extension);
+    final base64Data = base64Encode(bytes);
+
     final token = await _getIdToken();
     final response = await http.post(
       Uri.parse('$_workerBaseUrl/upload'),
