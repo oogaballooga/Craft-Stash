@@ -124,26 +124,80 @@ class MainState extends State<Main> {
             ),
           ),
           themeMode: tc.mode,
-          home: Scaffold(
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: List.generate(
-                _pages.length,
-                (index) => Navigator(
-                  key: _navigatorKeys[index],
-                  onGenerateRoute: (settings) {
-                    return MaterialPageRoute(
-                      builder: (context) => _pages[index],
-                    );
-                  },
+          home: LayoutBuilder(
+            builder: (context, constraints) {
+              const phoneWidth = 600.0;
+              const frameWidth = 420.0;
+
+              if (constraints.maxWidth <= phoneWidth) {
+                // Real phone — render full-width
+                return Scaffold(
+                  body: IndexedStack(
+                    index: _selectedIndex,
+                    children: List.generate(
+                      _pages.length,
+                      (index) => Navigator(
+                        key: _navigatorKeys[index],
+                        onGenerateRoute: (settings) {
+                          return MaterialPageRoute(
+                            builder: (context) => _pages[index],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  bottomNavigationBar: MainNavBar(
+                    enabled: true,
+                    selectedIndex: _selectedIndex,
+                    onTap: _onTabSelected,
+                  ),
+                );
+              }
+
+              // Desktop / tablet — phone-shaped frame centred on dark backdrop
+              return Container(
+                color: const Color(0xFF1A1A2E),
+                alignment: Alignment.center,
+                child: Container(
+                  width: frameWidth,
+                  height: constraints.maxHeight * 0.92,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    borderRadius: BorderRadius.circular(32),
+                    border: Border.all(color: Colors.white12, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 40,
+                        offset: const Offset(0, 20),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Scaffold(
+                    body: IndexedStack(
+                      index: _selectedIndex,
+                      children: List.generate(
+                        _pages.length,
+                        (index) => Navigator(
+                          key: _navigatorKeys[index],
+                          onGenerateRoute: (settings) {
+                            return MaterialPageRoute(
+                              builder: (context) => _pages[index],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    bottomNavigationBar: MainNavBar(
+                      enabled: true,
+                      selectedIndex: _selectedIndex,
+                      onTap: _onTabSelected,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            bottomNavigationBar: MainNavBar(
-              enabled: true,
-              selectedIndex: _selectedIndex,
-              onTap: _onTabSelected,
-            ),
+              );
+            },
           ),
         );
       },
